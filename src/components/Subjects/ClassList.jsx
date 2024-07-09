@@ -1,20 +1,24 @@
+// ClassList.jsx
+
 import React, { useEffect, useState } from "react";
 import ClassCard from "./ClassCard.jsx";
+import { getClasses } from "../../../backend/config/db.js"; // Adjust the path as per your project structure
 
 const ClassList = () => {
   const [classes, setClasses] = useState([]);
 
   useEffect(() => {
-    fetch("/subjects.json")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Network response was not ok " + response.statusText);
-        }
-        return response.json();
-      })
-      .then((data) => setClasses(data))
-      .catch((error) => console.error("Error fetching data:", error));
+    fetchClasses();
   }, []);
+
+  const fetchClasses = async () => {
+    try {
+      const data = await getClasses();
+      setClasses(data);
+    } catch (error) {
+      console.error("Error fetching classes:", error);
+    }
+  };
 
   return (
     <div className="container d-flex flex-wrap justify-content-center">
@@ -22,9 +26,9 @@ const ClassList = () => {
         <ClassCard
           key={classData.id}
           subject={classData.subject}
-          teacher={classData.teacher}
-          availability={classData.availability}
-          price={classData.price}
+          teacher={`Teacher ID: ${classData.teacher}`}
+          location={`Location Preference: ${classData.location}`}
+          price={`Price Per Hour: $${classData.price}`}
         />
       ))}
     </div>
