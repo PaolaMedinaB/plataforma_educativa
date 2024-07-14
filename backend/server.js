@@ -1,13 +1,14 @@
-// Import necessary modules
+// server.js
+
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { poolPromise, getClasses } from './config/db.js'; // Correctly imports poolPromise and getClasses from the same file
+import { poolPromise, getClasses, getTeacherSubjects } from './config/db.js'; // Import getTeacherSubjects
 import sql from 'mssql';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
-import axios from 'axios'; // Import axios for making HTTP requests
+import axios from 'axios';
 
 dotenv.config();
 console.log('JWT_SECRET:', process.env.JWT_SECRET);
@@ -54,10 +55,8 @@ app.post('/signup', async (req, res) => {
 
   try {
     // Process your signup logic here
-    // Assuming you are using a database, create a user or perform necessary operations
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(contrasena, saltRounds);
-    // Example using poolPromise with mssql
     const pool = await poolPromise;
     await pool.request()
       .input('nombre', sql.VarChar, nombre)
@@ -68,7 +67,7 @@ app.post('/signup', async (req, res) => {
         INSERT INTO Users (name, email, password, role)
         VALUES (@nombre, @correo, @contrasena, @rol);
       `);
-    // Retrieve the user_id for the inserted user
+
     const result = await pool.request()
       .input('correo', sql.VarChar, correo)
       .query(`
@@ -118,13 +117,10 @@ app.post('/login', async (req, res) => {
 
     let validPassword;
     if (user.password.startsWith('$2b$') || user.password.startsWith('$2a$')) {
-      // La contraseña está hasheada
       validPassword = await bcrypt.compare(contrasena, user.password);
     } else {
-      // La contraseña no está hasheada
       validPassword = (contrasena === user.password);
 
-      // Opcional: Hashear y actualizar la contraseña para futuros logins
       if (validPassword) {
         const hashedPassword = await bcrypt.hash(contrasena, 10);
         await pool.request()
@@ -143,7 +139,6 @@ app.post('/login', async (req, res) => {
       process.env.JWT_SECRET || 'un_secreto_por_defecto_seguro',
       { expiresIn: '1h' }
     );
-    console.log('JWT_SECRET:', process.env.JWT_SECRET);
     res.json({
       success: true,
       message: 'Inicio de sesión exitoso',
@@ -162,8 +157,8 @@ app.post('/login', async (req, res) => {
 // StudentHome route - Fetch student class data
 app.get('/StudentHome', async (req, res) => {
   try {
-    const classes = await getClasses(); // Fetch classes data from the database
-    res.json(classes); // Send classes data as JSON response
+    const classes = await getClasses();
+    res.json(classes);
   } catch (error) {
     console.error('Error fetching student classes:', error);
     res.status(500).json({ message: 'Error fetching student classes', error: error.message });
@@ -173,13 +168,104 @@ app.get('/StudentHome', async (req, res) => {
 // Route to fetch classes (Ensure this is placed before any wildcard routes)
 app.get('/api/classes', async (req, res) => {
   try {
-    const classes = await getClasses(); // Fetch classes data from the database
-    res.json(classes); // Send classes data as JSON response
+    const classes = await getClasses();
+    res.json(classes);
   } catch (error) {
     console.error('Error fetching classes:', error);
     res.status(500).json({ message: 'Error fetching classes', error: error.message });
   }
 });
+
+// Route to fetch teacher subjects
+app.post('/teacherSubjects', async (req, res) => {
+  const { userId } = req.body;
+  const user_id = parseInt(userId, 10);
+
+  if (!userId) {
+    return res.status(400).json({ message: 'userId is required' });
+  }
+
+  try {
+    const subjects = await getTeacherSubjects(user_id);
+    res.json(subjects);
+  } catch (error) {
+    console.error('Error fetching teacher subjects:', error);
+    res.status(500).json({ message: 'Error fetching teacher subjects', error: error.message });
+  }
+});
+
+// Route to create a new subject
+app.post('/api/createsubject', async (req, res) => {
+  const { userId, materia, precio, location } = req.body;
+
+  if (!userId || !materia  || !precio || !location) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+
+  try {
+    const pool = await poolPromise;
+
+    // Retrieve the teacher_id based on the userId
+    const teacherResult = await pool.request()
+      .input('userId', sql.Int, userId)
+      .query(`
+        SELECT teacher_id FROM Teachers WHERE user_id = @userId;
+      `);
+
+    const teacherId = teacherResult.recordset[0]?.teacher_id;
+
+    if (!teacherId) {
+      return res.status(400).json({ message: 'Teacher not found for the given userId' });
+    }
+
+    // Fetch subject_id from Subjects table based on materia
+    const subjectResult = await pool.request()
+      .input('materia', sql.VarChar, materia)
+      .query(`
+        SELECT subject_id FROM Subjects WHERE name = @materia;
+      `);
+
+    const subjectId = subjectResult.recordset[0]?.subject_id;
+
+    if (!subjectId) {
+      return res.status(400).json({ message: 'Subject not found for the given materia' });
+    }
+
+    // Insert into Classes table
+    await pool.request()
+      .input('teacher_id', sql.Int, teacherId)
+      .input('subject_id', sql.Int, subjectId)
+      .input('location', sql.VarChar, location)
+      .input('class_type', sql.VarChar, 'individual') // Assuming a static class_type for demo purposes
+      .input('max_students', sql.Int, 1) // Assuming a static max_students for demo purposes
+      .input('status', sql.VarChar, 'disponible') // Assuming a static status for demo purposes
+      .input('precio_clase', sql.Decimal(10, 2), precio)
+      .query(`
+        INSERT INTO Classes (teacher_id, subject_id, location, class_type, max_students, status,precio_clase)
+        VALUES (@teacher_id, @subject_id, @location, @class_type, @max_students, @status, @precio_clase);
+      `);
+
+    res.status(201).json({ message: 'Subject created successfully' });
+
+  } catch (error) {
+    console.error('Error creating subject:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// Add this route before any wildcard routes in server.js
+app.get('/api/subjects', async (req, res) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool.request().query('SELECT subject_id, name FROM Subjects');
+    res.json(result.recordset);
+  } catch (error) {
+    console.error('Error fetching subjects:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+
 
 // Start server
 app.listen(port, () => {

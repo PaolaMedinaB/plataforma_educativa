@@ -45,10 +45,10 @@ const StudentHome = () => {
           {classes.map((classData, index) => (
             <ClassCard
               key={index} // Use a unique identifier, like index or classData.teacher_id
-              subject={`Specialty: ${classData.specialties}`} // Displaying specialties
-              teacher={`Teacher ID: ${classData.teacher_id}`}
-              location={`Location Preference: ${classData.location_preference}`}
-              price={`Price Per Hour: $${classData.price_per_hour}`}
+              subject={`Materia: ${classData.subject_name}`} // Displaying specialties
+              teacher={`Profesor: ${classData.teacher}`}
+              location={`Ubicacion: ${classData.location}`}
+              price={`Precio: $${classData.price_per_hour}`}
             />
           ))}
         </div>

@@ -1,6 +1,15 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const UserHeader = () => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Clear any authentication data if stored (e.g., token, userId)
+    localStorage.removeItem('userId'); // Adjust as per your authentication mechanism
+    // Redirect to login page
+    navigate('/login');
+  };
+
   return (
     <>
       <header className="bg-custom-primary">
@@ -24,9 +33,9 @@ const UserHeader = () => {
                 </Link>
               </li>
               <li>
-                <a className="dropdown-item" href="#">
+                <button className="dropdown-item" onClick={handleLogout}>
                   Cerrar sesión
-                </a>
+                </button>
               </li>
             </ul>
           </div>

@@ -25,7 +25,7 @@ const ClassList = () => {
       {classes.map((classData) => (
         <ClassCard
           key={classData.id}
-          subject={classData.subject}
+          subject={classData.subject_name}
           teacher={`Teacher ID: ${classData.teacher}`}
           location={`Location Preference: ${classData.location}`}
           price={`Price Per Hour: $${classData.price}`}

@@ -5,14 +5,20 @@ import TutoringSessions from "./TutoringSessions.jsx";
 
 function TeacherHome() {
   const [userName, setUserName] = useState('');
+  const [userId, setUserId] = useState(null);
 
   useEffect(() => {
     const storedUserName = localStorage.getItem('userName');
+    const storedUserId = localStorage.getItem('userId');
+    
     if (storedUserName) {
       setUserName(storedUserName);
     }
+    if (storedUserId) {
+      setUserId(storedUserId);
+    }
   }, []);
-
+  
   return (
     <>
       <div>
@@ -22,7 +28,7 @@ function TeacherHome() {
             Hola, <b>profe {userName}</b>
           </h2>
           <h3>Mis materias</h3>
-          <TeacherSubjects />
+          {userId ? <TeacherSubjects userId={userId} /> : <p>Loading...</p>}
           <hr />
           <h4>Tutorias</h4>
           <TutoringSessions />
